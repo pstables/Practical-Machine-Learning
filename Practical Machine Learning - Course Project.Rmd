@@ -1,0 +1,79 @@
+---
+title: "Practical Machine Learning - Course Project"
+author: "Paul Stables"
+date: "21/09/2020"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+
+## Project
+The goal of this project is to build a model using a given training set of data that predicts what exercise is being performed.
+
+## Model
+
+### Load Environment and Data
+I first load the caret package which will be used to build the model, read the data into training and testing variables, and produce a summary of the columns to investigate what the data contains.
+
+```{r}
+library(caret)
+
+training <- read.csv("pml-training.csv")
+testing <- read.csv("pml-testing.csv")
+str(training)
+```
+### Clean Data
+The first stage in cleaning the data is to remove any variable whose variance is near 0. The summary of the data also shows that there are some variables that are mostly NA. These will not be useful for prediction purposes, so should also be removed.
+
+
+```{r}
+
+nzv <- nearZeroVar(training)
+training <- training[, -nzv]
+testing <- testing[, -nzv]
+
+mostlyNA <- sapply(training, function(x) mean(is.na(x))) > 0.95
+training <- training[, mostlyNA==F]
+testing <- testing[, mostlyNA==F]
+
+```
+
+Looking at the remaining variables, there are also a few that shouldn't be predictive (e.g. user name or time stamps). These are also removed.
+
+```{r}
+training <- training[, -(1:5)]
+testing <- testing[, -(1:5)]
+```
+
+### Train the Model
+In have chosen to use a Random Forest Model thanks to their high level of accuracy. I fit the model using the training data, including all variables as predictors.
+
+```{r}
+controlRF <- trainControl(method="cv", number=3, verboseIter=FALSE)
+forestMod <- train(classe ~ . , method = "rf", data=training,trControl=controlRF)
+```
+### Accuracy of model
+After completing the model, I then check the accuracy of the prediction based on the training set versus the actual classifications and find that the model has a good level of accuracy. 
+
+```{r cache = TRUE}
+trainingPrediction <- predict(forestMod, training)
+confusionMatrix(trainingPrediction, training$classe)
+```
+
+### Results
+Applying the Random Forest model to the test data gives the required predictions.
+
+```{r}
+
+testingPrediction <- predict(forestMod, newdata = testing)
+testingPrediction
+```
